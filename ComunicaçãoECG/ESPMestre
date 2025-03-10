@@ -1,0 +1,53 @@
+// Código do ESP32 Mestre
+#include <esp_now.h>
+#include <WiFi.h>
+#include <ESP32Servo.h>
+
+#define AD8232_SIGNAL 34
+#define LO_PLUS 32
+#define LO_MINUS 33
+
+
+
+uint8_t slaveAddress[] = {0xB0, 0xA7, 0x32, 0x14, 0xDB, 0x1C};
+esp_now_peer_info_t peerInfo;
+
+int lastSent = 0;
+unsigned long lastTime = 0;
+const unsigned long interval = 1000;
+
+void sendData(int value) {
+    if (millis() - lastTime >= interval && value != lastSent) {
+        esp_now_send(slaveAddress, (uint8_t *)&value, sizeof(value));
+        lastSent = value;
+        lastTime = millis();
+    }
+}
+
+void setup() {
+    WiFi.mode(WIFI_STA);
+    if (esp_now_init() != ESP_OK) {
+        Serial.println("ESP-NOW init failed");
+        return;
+    }
+    memcpy(peerInfo.peer_addr, slaveAddress, 6);
+    peerInfo.channel = 0;
+    peerInfo.encrypt = false;
+    esp_now_add_peer(&peerInfo);
+    Serial.begin(115200);
+}
+
+void loop() {
+    int signal = analogRead(AD8232_SIGNAL);
+    int lo_plus = digitalRead(LO_PLUS);
+    int lo_minus = digitalRead(LO_MINUS);
+    int valRef = 2100;
+    if (lo_plus == 1 || lo_minus == 1) return; // Eletrodos desconectados
+    Serial.println(signal);
+    delay(100);
+    if (signal > valRef) {
+        sendData(1);
+    } else {
+        sendData(0);
+    }
+}
