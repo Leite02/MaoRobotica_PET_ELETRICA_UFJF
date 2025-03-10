@@ -1,0 +1,46 @@
+// Código do ESP32 Escravo
+#include <esp_now.h>
+#include <WiFi.h>
+#include <ESP32Servo.h>
+
+#define SERVO1 13
+#define SERVO2 12
+#define SERVO3 14
+#define SERVO4 27
+#define SERVO5 26
+
+Servo servos[5];
+int lastState = 0;
+int servoPosition = 0;
+
+void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
+    int receivedValue;
+    memcpy(&receivedValue, incomingData, sizeof(receivedValue));
+    
+    if (lastState == 0 && receivedValue == 1) {
+        servoPosition = (servoPosition == 0) ? 90 : 0;
+        for (int i = 0; i < 5; i++) {
+            servos[i].write(servoPosition);
+        }
+    }
+    lastState = receivedValue;
+}
+
+void setup() {
+    WiFi.mode(WIFI_STA);
+    if (esp_now_init() != ESP_OK) {
+        Serial.println("ESP-NOW init failed");
+        return;
+    }
+    esp_now_register_recv_cb(onDataRecv);
+    
+    servos[0].attach(SERVO1);
+    servos[1].attach(SERVO2);
+    servos[2].attach(SERVO3);
+    servos[3].attach(SERVO4);
+    servos[4].attach(SERVO5);
+}
+
+void loop() {
+    // Nada a fazer no loop principal
+}
